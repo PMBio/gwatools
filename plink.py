@@ -220,6 +220,7 @@ def readBED(basefilename, blocksize = 1, start = 0, nSNPs = SP.inf, startpos = N
     pos = SP.array(bim[:,(0,2,3)],dtype = 'float')
     #pdb.set_trace()
     if startpos is not None:
+        #pdb.set_trace()
         i_c = pos[:,0]==startpos[0]
         i_largerbp = pos[:,ipos]>=startpos[ipos]
         start = which(i_c * i_largerbp)
@@ -230,7 +231,15 @@ def readBED(basefilename, blocksize = 1, start = 0, nSNPs = SP.inf, startpos = N
         end = which(i_c * i_smallerbp)
         while (end+1 < pos.shape[0] and pos[end+1,ipos] == endpos[ipos]):
             end = end + 1
-        nSNPs = end - start + 1
+        nSNPs = end - start
+        if (nSNPs<=0) or (end==0) or (start<=0):
+            ret = {
+                'pos':SP.zeros((0,3)),
+                'rs':SP.zeros((0)),
+                'iid':fam,
+                'snps':SP.zeros((fam.shape[0],0))
+                }
+            return ret
         pass
     N = fam.shape[0]
     S = bim.shape[0]
