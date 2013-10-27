@@ -3,14 +3,15 @@ import gzip as gz
 import pdb
 import os
 import fnmatch
+import csvex
 
 def gt_lookup(gt):
     
-    if gt == '0/0':
+    if gt in ['0/0','0|0']:
         return 0
-    if gt in ['0/1', '1/0']:
+    if gt in ['0/1', '1/0','0|1','1|0']:
         return 1
-    if gt == '1/1':
+    if gt in ['1/1','1|1']:
         return 2
     if gt == './.':
         return -1
@@ -45,14 +46,10 @@ def parseDir(baseDir):
             allDic.append(subDic)
     return sumAll(allDic)
             
-def readVCF(filename, delimiter = '\t', missing = './.', valid_exome = None, valid_gt = None, valid_sample = None):
+def readVCF(filename, delimiter = '\t', missing = './.', valid_exome = None, valid_gt = None, valid_sample = None,parse_meta=False):
 
-    if filename[-2:] == 'gz':
-        infile = gz.open(filename, 'rb')
-    else:
-        infile = open(filename, 'r')
-    
-    data = sp.loadtxt(infile, dtype = 'str', delimiter = delimiter, comments = '##') 
+    data = csvex.readCSV(filename,delimiter=delimiter,typeC='str',expandLength=True,comment = '##')
+
 
     ### vcf file was empty
     if len(data.shape) < 2:
@@ -70,8 +67,14 @@ def readVCF(filename, delimiter = '\t', missing = './.', valid_exome = None, val
     data = data[[i for i in xrange(data.shape[0]) if not ',' in data[i, 4]], :]
 
     pos = data[1:,0:2]#sp.array(data[1:,0:2], dtype = 'float')
-    qual = sp.array(data[1:, 5], dtype = 'float')
-    low_qual = sp.array(data[1:, 4] == 'LowQual', dtype = 'bool')
+    qual = sp.array(data[1:, 5])
+    low_qual = sp.array(data[1:, 4])
+    rs_id = data[1::,2]
+    #get end tag if existing
+    if parse_meta:
+        meta = data[1::,7]
+    else:
+        meta = None
 
     data = data[:, 9:]
     if not valid_exome == None:
@@ -101,10 +104,7 @@ def readVCF(filename, delimiter = '\t', missing = './.', valid_exome = None, val
     for i in xrange(snps.shape[0]):
         tmp_idx = sp.where(~isnan[i, :])
         if tmp_idx[0].shape[0] > 0:
-            #snps[i, tmp_idx] = map(lambda x: gt_lookup(x[0].split('\t')[0].split(':')[0]), data[i+1, tmp_idx])
             snps[i, tmp_idx] = map(lambda x: gt_lookup(x.split('\t')[0].split(':')[0]), data[i+1, tmp_idx][0].tolist())
-                         
-    infile.close()
 
-    return {'ids':ids, 'pos':pos, 'snps':snps, 'qual':qual, 'low_qual':low_qual}
+    return {'ids':ids, 'pos':pos, 'snps':snps.T, 'qual':qual, 'low_qual':low_qual,'rs_id':rs_id,'meta':meta}
 
